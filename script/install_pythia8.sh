@@ -1,4 +1,4 @@
-#MY_LIB_DIR=$HOME/summer
+#MY_LIB_DIR=$HOME/root4summer
 #MY_PYTHIA_VERSION='pythia8165' 
 wget http://home.thep.lu.se/~torbjorn/pythia8/$MY_PYTHIA_VERSION.tgz
 tar -zxf $MY_PYTHIA_VERSION.tgz
