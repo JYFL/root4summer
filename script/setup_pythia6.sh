@@ -1,0 +1,1 @@
+PYTHIA6=$MY_LIB_DIR/pythia6
