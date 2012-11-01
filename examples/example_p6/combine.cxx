@@ -17,7 +17,9 @@ using namespace std;
 TFile *outRoot = NULL;
 TH1D * hJetPt = NULL;
 TProfile * hEnergyInR = NULL;
+TProfile * hEnergyInPhi = NULL;
 TH1D * hJetEnergyFraction = NULL;
+TH1D * hDPhiJets = NULL;
 
 // Function Decl
 int jetReco( int iEvent, double inputEnergy, vector<PseudoJet> & particles );
@@ -39,7 +41,9 @@ int main ( int argc, char* argv[]) {
     outRoot = new TFile(outputFileName,"RECREATE");
     hJetPt = new TH1D("hJetPt","Jet Pt Spectra", 1000,0,100);
     hEnergyInR = new TProfile("hEnergyInR","Energy-R/R0",100,0,10 );
+    hEnergyInPhi = new TProfile("hEnergyInPhi","Energy-Phi/Phi0",100,0,10 );
     hJetEnergyFraction = new TH1D("hJetEnergyFraction","Jet Energy / Input Energy",10,0,1 );
+    hDPhiJets = new TH1D("hDPhiJets","hDPhiJets",1000,-10,10);
 
 
     vector<PseudoJet> particles;
@@ -86,21 +90,30 @@ int jetReco( int iEvent, double inputEnergy, vector<PseudoJet> & particles ){
 
     // run the clustering, extract the jets
     ClusterSequence cs(particles, jet_def);
-    vector<PseudoJet> jets = sorted_by_E(cs.inclusive_jets());
+    //vector<PseudoJet> jets = sorted_by_E(cs.inclusive_jets());
+    vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
 
+    hDPhiJets->Fill( jets[0].delta_phi_to(jets[1]));
     hJetEnergyFraction->Fill( jets[0].e()/inputEnergy );
     TH1D * hEnergyFracInRbin = new TH1D("hEnergyFracInRbin","",100,0,10);
+    TH1D * hEnergyFracInPhibin = new TH1D("hEnergyFracInPhibin","",100,0,10);
     for( UInt_t ip=0;ip<particles.size();ip++ ){
         double deltaR = jets[0].delta_R(particles[ip]);
         hEnergyFracInRbin->Fill( deltaR, particles[ip].e()/inputEnergy );
+        double deltaPhi = jets[0].delta_phi_to(particles[ip]);
+        hEnergyFracInPhibin->Fill( TMath::Abs(deltaPhi), particles[ip].e()/inputEnergy );
     }
 
     double energyInR = 0;
+    double energyInPhi = 0;
     for( int ib=1;ib<hEnergyFracInRbin->GetNbinsX();ib++ ){
         energyInR += hEnergyFracInRbin->GetBinContent(ib);
         hEnergyInR->Fill( hEnergyInR->GetBinCenter(ib), energyInR );
+        energyInPhi += hEnergyFracInPhibin->GetBinContent(ib);
+        hEnergyInPhi->Fill( hEnergyInPhi->GetBinCenter(ib), energyInPhi );
     }
     delete hEnergyFracInRbin;
+    delete hEnergyFracInPhibin;
 
 
 

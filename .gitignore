@@ -14,3 +14,11 @@
 /pythia*
 /root*
 /BUILD
+/fastjet*
+
+*_C.d
+*_C.so
+*.exe
+*.root
+
+*.dat

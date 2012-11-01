@@ -6,6 +6,8 @@ cd $MY_ROOT_VERSION
 
 make clean
 
+echo =========== CONFIGURE
+
 ./configure \
 --prefix=$ROOTSYS \
 --etcdir=$ROOTSYS/etc \
@@ -19,5 +21,7 @@ make clean
 --disable-globus \
 --build=debug
 
+echo =========== MAKE
 make -j2
+echo =========== INSTALL
 make install
