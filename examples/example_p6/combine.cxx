@@ -8,24 +8,42 @@
 #include "TPRegexp.h"
 #include "TFile.h"
 #include "TH1D.h"
+#include "TProfile.h"
 
 using namespace fastjet;
 using namespace std;
 
-// File handle to save historgram with root
-TFile *outRoot = new TFile("out.root","RECREATE");
-// Book Histgram with root
-TH1D * hJetPt = new TH1D("hJetPt","Jet Pt Spectra", 1000,0,100);
-int jetReco( int iEvent, vector<PseudoJet> & particles );
+// File handle to save histogram with root
+TFile *outRoot = NULL;
+TH1D * hJetPt = NULL;
+TProfile * hEnergyInR = NULL;
+TH1D * hJetEnergyFraction = NULL;
 
-int main () {
+// Function Decl
+int jetReco( int iEvent, double inputEnergy, vector<PseudoJet> & particles );
+
+int main ( int argc, char* argv[]) {
+    if( argc != 4 ){
+        cout<<"USAGE : ./combine.exe inputEnergy inputFileName outputFileName"<<endl;
+        exit(1);
+    }
+
+    double inputEnergy = atof(argv[1])/2.;
+    TString inputFileName = argv[2];
+    TString outputFileName = argv[3];
+
+    //====  File handle to read data ( common c++ )
+    ifstream infile( inputFileName ,ifstream::in);
+
+    //====  BOOK output root and histogram
+    outRoot = new TFile(outputFileName,"RECREATE");
+    hJetPt = new TH1D("hJetPt","Jet Pt Spectra", 1000,0,100);
+    hEnergyInR = new TProfile("hEnergyInR","Energy-R/R0",100,0,10 );
+    hJetEnergyFraction = new TH1D("hJetEnergyFraction","Jet Energy / Input Energy",10,0,1 );
+
 
     vector<PseudoJet> particles;
-
-    // File handle to read data ( common c++ )
-    ifstream infile("in.dat",ifstream::in);
-
-
+    //====  READ OSCAR
     TString line;
     TPMERegexp field("\\s+");
     int iEvent;
@@ -38,7 +56,7 @@ int main () {
         if( !field[0].IsDigit() ) continue; 
 
         if( field.NMatches() < 5 ) {
-            if( iEvent > 0 )jetReco( iEvent,particles );
+            if( iEvent > 0 )jetReco( iEvent,inputEnergy, particles );
             iEvent = field[0].Atoi();
             particles.clear();
         }else{
@@ -55,7 +73,8 @@ int main () {
     outRoot->Close();
 }
 
-int jetReco( int iEvent, vector<PseudoJet> & particles ){
+int jetReco( int iEvent, double inputEnergy, vector<PseudoJet> & particles ){
+    if( particles.size() < 1 ) return 0;
 
     //======================================
     //    FASTJET
@@ -67,8 +86,25 @@ int jetReco( int iEvent, vector<PseudoJet> & particles ){
 
     // run the clustering, extract the jets
     ClusterSequence cs(particles, jet_def);
-    vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
+    vector<PseudoJet> jets = sorted_by_E(cs.inclusive_jets());
 
+    hJetEnergyFraction->Fill( jets[0].e()/inputEnergy );
+    TH1D * hEnergyFracInRbin = new TH1D("hEnergyFracInRbin","",100,0,10);
+    for( UInt_t ip=0;ip<particles.size();ip++ ){
+        double deltaR = jets[0].delta_R(particles[ip]);
+        hEnergyFracInRbin->Fill( deltaR, particles[ip].e()/inputEnergy );
+    }
+
+    double energyInR = 0;
+    for( int ib=1;ib<hEnergyFracInRbin->GetNbinsX();ib++ ){
+        energyInR += hEnergyFracInRbin->GetBinContent(ib);
+        hEnergyInR->Fill( hEnergyInR->GetBinCenter(ib), energyInR );
+    }
+    delete hEnergyFracInRbin;
+
+
+
+    /*  
     // print out some infos
     cout<< "\n\n\n"<<endl;
     cout<<" ========================= iEvent = "<<iEvent<<" ===============================\n"<<endl;
@@ -77,14 +113,15 @@ int jetReco( int iEvent, vector<PseudoJet> & particles ){
     // print the jets
     cout <<   "        pt y phi" << endl;
     for (unsigned i = 0; i < jets.size(); i++) {
-        hJetPt->Fill( jets[i].perp()) ;
-        cout << "jet " << i << ": "<< jets[i].perp() << " " 
-            << jets[i].rap() << " " << jets[i].phi() << endl;
-        vector<PseudoJet> constituents = jets[i].constituents();
-        for (unsigned j = 0; j < constituents.size(); j++) {
-            cout << "    constituent " << j << "'s pt: " << constituents[j].perp()
-                << endl;
-        }
+    hJetPt->Fill( jets[i].perp()) ;
+    cout << "jet " << i << ": "<< jets[i].perp() << " " 
+    << jets[i].rap() << " " << jets[i].phi() << endl;
+    vector<PseudoJet> constituents = jets[i].constituents();
+    for (unsigned j = 0; j < constituents.size(); j++) {
+    cout << "    constituent " << j << "'s pt: " << constituents[j].perp()
+    << endl;
     }
+    }
+    */
     return 0;
 } 
