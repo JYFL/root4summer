@@ -15,3 +15,5 @@ root4summer
     source script/setup_base.sh
     source script/setup_pythia8.sh
     ./script/install_pythia8.sh
+
+## TEST
