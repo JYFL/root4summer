@@ -15,11 +15,26 @@ using namespace std;
 
 // File handle to save histogram with root
 TFile *outRoot = NULL;
+// Performance Histogram
 TH1D * hJetPt = NULL;
-TProfile * hEnergyInR = NULL;
-TProfile * hEnergyInPhi = NULL;
 TH1D * hJetEnergyFraction = NULL;
 TH1D * hDPhiJets = NULL;
+// Physics Histogram
+TProfile * hREnergy[10]; 
+
+// Variables
+int     EnergyFractionBin[] = { 10,20,30,40,50,60,70,80,90 }; // 
+int     nEnergyFractionBin = sizeof( EnergyFractionBin )/sizeof(int);
+
+int     NbinE = 1000;
+double  MinE  = 0;
+double  MaxE  = 1000;
+double  BinSizeE = ( MaxE - MinE ) / NBinE;
+
+int     NbinR = 1000;
+double  MinR  = 0;
+double  MaxR  = 1;
+
 
 // Function Decl
 int jetReco( int iEvent, double inputEnergy, vector<PseudoJet> & particles );
@@ -40,10 +55,11 @@ int main ( int argc, char* argv[]) {
     //====  BOOK output root and histogram
     outRoot = new TFile(outputFileName,"RECREATE");
     hJetPt = new TH1D("hJetPt","Jet Pt Spectra", 1000,0,100);
-    hEnergyInR = new TProfile("hEnergyInR","Energy-R/R0",100,0,10 );
-    hEnergyInPhi = new TProfile("hEnergyInPhi","Energy-Phi/Phi0",100,0,10 );
     hJetEnergyFraction = new TH1D("hJetEnergyFraction","Jet Energy / Input Energy",10,0,1 );
     hDPhiJets = new TH1D("hDPhiJets","hDPhiJets",1000,-10,10);
+    for( int i=0;i<nEnergyFractionBin;i++ ){
+        nEnergyFractionBin = new TProfile( Form("hREnergy%02d",EnergyFractionBin[i]),Form("R/R0 vs Energy in %d%%",EnergyFractionBin[i]),1000,0,1000 );
+    }
 
 
     vector<PseudoJet> particles;
@@ -85,7 +101,7 @@ int jetReco( int iEvent, double inputEnergy, vector<PseudoJet> & particles ){
     //======================================
 
     // choose a jet definition
-    double R = 0.7;
+    double R = 1;
     JetDefinition jet_def(antikt_algorithm, R);
 
     // run the clustering, extract the jets
@@ -93,48 +109,33 @@ int jetReco( int iEvent, double inputEnergy, vector<PseudoJet> & particles ){
     //vector<PseudoJet> jets = sorted_by_E(cs.inclusive_jets());
     vector<PseudoJet> jets = sorted_by_pt(cs.inclusive_jets());
 
+    // Fill Performance Hist
     hDPhiJets->Fill( jets[0].delta_phi_to(jets[1]));
     hJetEnergyFraction->Fill( jets[0].e()/inputEnergy );
-    TH1D * hEnergyFracInRbin = new TH1D("hEnergyFracInRbin","",100,0,10);
-    TH1D * hEnergyFracInPhibin = new TH1D("hEnergyFracInPhibin","",100,0,10);
-    for( UInt_t ip=0;ip<particles.size();ip++ ){
-        double deltaR = jets[0].delta_R(particles[ip]);
-        hEnergyFracInRbin->Fill( deltaR, particles[ip].e()/inputEnergy );
-        double deltaPhi = jets[0].delta_phi_to(particles[ip]);
-        hEnergyFracInPhibin->Fill( TMath::Abs(deltaPhi), particles[ip].e()/inputEnergy );
+
+    double  binWidthR = 0.001;
+    double  minR = 0;
+    double  maxR = 1;
+    int     nRbin = (maxR-minR)/binWidthR;
+    vector<double> energyInRbin(nRbin,0);
+    // QUESTION : check All particles or constituents? 
+    vector<PseudoJet>& constituents = jets[0].constituents();
+    for( UInt_t ip=0;ip<constituents.size();ip++ ){
+        double deltaR = jets[0].delta_R(constituents[ip]);
+        int ibin = ( deltaR - minR ) / binWidthR;
+        energyInRbin[ibin] += constituents[ip]/jets[0].e();
     }
 
+    TGraph gEnergyInR( nRbin );
     double energyInR = 0;
-    double energyInPhi = 0;
-    for( int ib=1;ib<hEnergyFracInRbin->GetNbinsX();ib++ ){
-        energyInR += hEnergyFracInRbin->GetBinContent(ib);
-        hEnergyInR->Fill( hEnergyInR->GetBinCenter(ib), energyInR );
-        energyInPhi += hEnergyFracInPhibin->GetBinContent(ib);
-        hEnergyInPhi->Fill( hEnergyInPhi->GetBinCenter(ib), energyInPhi );
+    for( int ib=0;ib<nRbin;ib++ ){
+        energyInR += energyInRbin[ib];
+        gEnergyInR.SetPoint(ib, minR + (ib+.5)*binWidthR, energyInR );
     }
-    delete hEnergyFracInRbin;
-    delete hEnergyFracInPhibin;
 
-
-
-    /*  
-    // print out some infos
-    cout<< "\n\n\n"<<endl;
-    cout<<" ========================= iEvent = "<<iEvent<<" ===============================\n"<<endl;
-    cout << "Clustering with " << jet_def.description() << endl;
-
-    // print the jets
-    cout <<   "        pt y phi" << endl;
-    for (unsigned i = 0; i < jets.size(); i++) {
-    hJetPt->Fill( jets[i].perp()) ;
-    cout << "jet " << i << ": "<< jets[i].perp() << " " 
-    << jets[i].rap() << " " << jets[i].phi() << endl;
-    vector<PseudoJet> constituents = jets[i].constituents();
-    for (unsigned j = 0; j < constituents.size(); j++) {
-    cout << "    constituent " << j << "'s pt: " << constituents[j].perp()
-    << endl;
+    for( int i=0;i<10;i++ ){
+        hEnergyFractionRadious[i]->Fill( jets[0].e(), gEnergyInR.Eval(i/10.) );
     }
-    }
-    */
+
     return 0;
 } 

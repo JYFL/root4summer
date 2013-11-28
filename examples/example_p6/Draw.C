@@ -45,7 +45,8 @@ void Draw(){
     */
 
     TCanvas *cRE = new TCanvas();
-    TH2F * hfrRE = new TH2F("hfrRE","",10,EnergyBin[0]*.9,EnergyBin[nEnergy-1]*1.2,10,1e-2,1e1);
+    //TH2F * hfrRE = new TH2F("hfrRE","",10,EnergyBin[0]*.9,EnergyBin[nEnergy-1]*1.2,10,1e-2,1e1);
+    TH2F * hfrRE = new TH2F("hfrRE","",10,1e1, 1e6, 10 ,1e-2,1e1);
     hfrRE->Draw();
     gPad->SetGridx(1);
     gPad->SetGridy(1);
@@ -66,6 +67,13 @@ void Draw(){
         gREnergy[ifrac]->SetLineColor(gColor[ifrac]);
         gREnergy[ifrac]->Draw("pl");
         legRE->AddEntry( gREnergy[ifrac], Form("%.0f%%",frac[ifrac]*100),"lp");
+        //TF1 * func = gREnergy[ifrac]->GetFunction(Form("fitFunc%d",frac[ifrac]*100));
+        //TF1 * func = gREnergy[ifrac]->GetFunction("pol1");
+        TF1 * func = new TF1("loglog","TMath::Exp([0]*TMath::Log(x)+[1])");
+        gREnergy[ifrac]->Fit(func);
+        func->SetLineColor(gColor[ifrac]);
+        func->SetRange( 1e1, 1e6 );
+        func->Draw("same");
     }
     legRE->Draw();
 

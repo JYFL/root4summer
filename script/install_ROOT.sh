@@ -19,6 +19,7 @@ echo =========== CONFIGURE
 --enable-xrootd \
 --enable-gsl-shared \
 --disable-globus \
+--enable-cocoa \
 --build=debug
 
 echo =========== MAKE
